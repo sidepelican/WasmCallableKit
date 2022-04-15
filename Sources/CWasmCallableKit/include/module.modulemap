@@ -1,0 +1,4 @@
+module CWasmCallableKit {
+    header "CWasmCallableKit.h"
+    export *
+}
