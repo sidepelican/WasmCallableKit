@@ -1,0 +1,41 @@
+{
+  "pins" : [
+    {
+      "identity" : "binaryswiftsyntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omochi/BinarySwiftSyntax",
+      "state" : {
+        "branch" : "main",
+        "revision" : "4e5348faeda3aa711e1a5e002f40203fa5ba384f"
+      }
+    },
+    {
+      "identity" : "codabletotypescript",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omochi/CodableToTypeScript",
+      "state" : {
+        "branch" : "main",
+        "revision" : "5438280e4190782591027138abe2237d9e472fc0"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "f3c9084a71ef4376f2fabbdf1d3d90a49f1fabdb",
+        "version" : "1.1.2"
+      }
+    },
+    {
+      "identity" : "swifttypereader",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omochi/SwiftTypeReader",
+      "state" : {
+        "branch" : "main",
+        "revision" : "3df91b15c2c7fa187a2659b45150c62f98ef2f25"
+      }
+    }
+  ],
+  "version" : 2
+}
