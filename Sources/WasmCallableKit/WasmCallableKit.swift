@@ -11,8 +11,7 @@ public enum WasmCallableKit {
 
 @_cdecl("ck_send_impl")
 func ck_send_impl(_ functionID: Int32, _ argumentBufferLength: Int32) -> Int32 {
-    // +1 for null terminator
-    let memory = malloc(Int(argumentBufferLength) + 1).assumingMemoryBound(to: UInt8.self)
+    let memory = malloc(Int(argumentBufferLength)).assumingMemoryBound(to: UInt8.self)
     defer { memory.deallocate() }
     receive_arg(memory)
 
