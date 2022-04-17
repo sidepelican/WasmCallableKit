@@ -61,6 +61,21 @@ export const bindCallableKitExports = (swift: PartialSwiftRuntime): CallableKitE
 
         try content.data(using: .utf8)!
             .write(to: outDirectory.appendingPathComponent("CallableKitExports.ts"), options: .atomic)
+
+        if let resourceURL = Bundle.module.resourceURL.map({ $0.appendingPathComponent("templates") }) {
+            do {
+                let templates = try FileManager.default.contentsOfDirectory(atPath: resourceURL.path)
+                for template in templates {
+                    try? FileManager.default.removeItem(at: outDirectory.appendingPathComponent(template))
+                    try FileManager.default.copyItem(
+                        at: resourceURL.appendingPathComponent(template),
+                        to: outDirectory.appendingPathComponent(template)
+                    )
+                }
+            } catch {
+                print(error)
+            }
+        }
     }
 }
 
@@ -68,11 +83,7 @@ extension TypeMap {
     fileprivate func tsName(stype: SType) throws -> String {
         let printer = PrettyPrinter()
         try StructConverter.transpile(typeMap: self, type: stype).print(printer: printer)
-        var output =  printer.output
-        if stype.enum != nil, output.contains("JSON") {
-            output = output.replacingOccurrences(of: "JSON", with: "") // CodableResultJSON<foo, bar> など、Genericな場合はJSONがまちまちに出現しうるので雑に全部消す
-        }
-        return output
+        return printer.output
     }
 }
 
