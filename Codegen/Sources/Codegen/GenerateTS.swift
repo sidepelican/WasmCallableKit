@@ -3,42 +3,6 @@ import Foundation
 import SwiftTypeReader
 import TSCodeModule
 
-class ImportMap {
-    typealias Def = (typeName: String, fileName: String)
-    init(defs: [Def]) {
-        self.defs = defs
-    }
-
-    var defs: [Def] = []
-    func insert(type: SType, file: String) {
-        if type.enum != nil {
-            defs.append((type.name + "Decode", file))
-        }
-        defs.append((type.name, file))
-    }
-
-    func file(for typeName: String) -> String? {
-        defs.first(where: { $0.typeName == typeName })?.fileName
-    }
-
-    func typeNames(for file: String) -> [String] {
-        defs.filter { $0.fileName == file }.map(\.typeName)
-    }
-
-    func importDecls(forTypes types: [String], for file: String) -> [String] {
-        var filesTypesTable: [String: [String]] = [:]
-        for type in types {
-            guard let typefile = self.file(for: type), typefile != file else { continue }
-            filesTypesTable[typefile, default: []].append(type)
-        }
-
-        return filesTypesTable.sorted(using: KeyPathComparator(\.key)).map { (file: String, types: [String]) in
-            let file = file.replacingOccurrences(of: ".ts", with: "")
-            return "import { \(types.sorted().joined(separator: ", ")) } from \"./\(file)\";"
-        }
-    }
-}
-
 struct GenerateTS {
     var exportsProtocol: ProtocolType
     var outDirectory: URL
@@ -51,7 +15,7 @@ struct GenerateTS {
     }()
 
     func run() throws {
-        let content = """
+        var content = """
 type PartialSwiftRuntime = {
   callSwiftFunction(functionID: number, argument: any): any
 }
@@ -78,6 +42,23 @@ export const bindCallableKitExports = (swift: PartialSwiftRuntime): CallableKitE
   };
 };
 """
+
+        for stype in exportsProtocol.module!.types {
+            if stype.struct != nil || (stype.enum != nil && !stype.enum!.caseElements.isEmpty) {
+                let tsCode = try CodableToTypeScript.CodeGenerator(
+                    typeMap: typeMap,
+                    standardTypes: CodableToTypeScript.CodeGenerator.defaultStandardTypes
+                )(type: stype)
+
+                let tsDecls = tsCode.decls.filter {
+                    if case .importDecl = $0 { return false } else { return true }
+                }
+                    .map { $0.description.trimmingCharacters(in: .whitespacesAndNewlines) }
+                content.append("\n\n")
+                content.append(tsDecls.joined(separator: "\n\n"))
+            }
+        }
+
         try content.data(using: .utf8)!
             .write(to: outDirectory.appendingPathComponent("CallableKitExports.ts"), options: .atomic)
     }

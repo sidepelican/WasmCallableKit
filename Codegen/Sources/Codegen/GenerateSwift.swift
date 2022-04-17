@@ -9,10 +9,11 @@ struct GenerateSwift {
         let content = """
 import Foundation
 
-private struct Empty: Codable {}
+\(exportsProtocol.functionRequirements.contains(where: { !$0.hasOutput }) ? "private let emptyReturnData = Data(\"{}\".utf8)" : "")
 
-\(exportsProtocol.functionRequirements.map({ f in
-"""
+\(exportsProtocol.functionRequirements.compactMap({ f in
+if f.parameters.isEmpty { return nil }
+return """
 private struct \(f.name)Arguments: Decodable {
 \(f.parameters.enumerated().map({ """
     var _\($0.offset): \($0.element.unresolvedType.name)
@@ -28,13 +29,13 @@ private func makeFunctionList<T: WasmExports>(wasmExports: T.Type) -> [(Data) th
 \(exportsProtocol.functionRequirements.map({ f in
 """
     ret.append { (arg: Data) in
-        let a = try decoder.decode(\(f.name)Arguments.self, from: arg)
-        let \(f.hasOutput ? "b" : "_") = \(f.isThrows ? "try ": "")T.\(f.name)(
+        \(!f.parameters.isEmpty ? "let a = try decoder.decode(\(f.name)Arguments.self, from: arg)" : "")
+        \(f.hasOutput ? "let b = " : "")\(f.isThrows ? "try ": "")T.\(f.name)(
 \(f.parameters.enumerated().map({ """
             \($0.element.label ?? $0.element.name): a._\($0.offset)
 """ }).joined(separator: ",\n"))
         )
-        return try encoder.encode(\(f.hasOutput ? "b" : "Empty()"))
+        return \(f.hasOutput ? "try encoder.encode(b)" : "emptyReturnData")
     }
 """
 }).joined(separator: "\n"))
