@@ -3,7 +3,7 @@ import Foundation
 import SwiftTypeReader
 
 enum CodegenError: Error {
-    case definitionsModuleNameNotFound
+    case moduleNameNotFound
 }
 
 struct ValidationError: Error, CustomStringConvertible {
@@ -23,7 +23,22 @@ struct ValidationError: Error, CustomStringConvertible {
     @Option(help: "generate swift adapter", completion: .directory)
     var swift_out: URL?
 
+    @Option(name: .shortAndLong, help: "module name")
+    var module: String?
+
     mutating func run() throws {
+        let moduleName = wasmExportsFile
+            .resolvingSymlinksInPath()
+            .pathComponents
+            .eachPairs()
+            .first { (f, s) in
+                f == "Sources"
+            }
+            .map(\.1)
+        guard let moduleName = module ?? moduleName else {
+            throw CodegenError.moduleNameNotFound
+        }
+
         let module = Reader()
         let result = try module.read(file: wasmExportsFile)
 
@@ -58,6 +73,7 @@ struct ValidationError: Error, CustomStringConvertible {
 
         if let ts_out = ts_out {
             try GenerateTS(
+                moduleName: moduleName,
                 exportsProtocol: exportsProtocol,
                 outDirectory: ts_out
             ).run()

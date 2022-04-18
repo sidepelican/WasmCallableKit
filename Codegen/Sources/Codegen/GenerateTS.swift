@@ -4,6 +4,7 @@ import SwiftTypeReader
 import TSCodeModule
 
 struct GenerateTS {
+    var moduleName: String
     var exportsProtocol: ProtocolType
     var outDirectory: URL
 
@@ -20,14 +21,14 @@ type PartialSwiftRuntime = {
   callSwiftFunction(functionID: number, argument: any): any
 }
 
-export type CallableKitExports = {
+export type \(moduleName)Exports = {
 \(try exportsProtocol.functionRequirements.map({ f in
 """
   \(f.name): (\(try f.parameters.map({ "\($0.name): \(try typeMap.tsName(stype: $0.type()))" }).joined(separator: ", "))) => \(try f.outputType().map(typeMap.tsName(stype:)) ?? "void"),
 """ }).joined(separator: "\n"))
 };
 
-export const bindCallableKitExports = (swift: PartialSwiftRuntime): CallableKitExports => {
+export const bind\(moduleName) = (swift: PartialSwiftRuntime): \(moduleName)Exports => {
   return {
 \(try exportsProtocol.functionRequirements.enumerated().map({ (i, f) in
 """
@@ -59,8 +60,9 @@ export const bindCallableKitExports = (swift: PartialSwiftRuntime): CallableKitE
             }
         }
 
+        try? FileManager.default.createDirectory(at: outDirectory, withIntermediateDirectories: true)
         try content.data(using: .utf8)!
-            .write(to: outDirectory.appendingPathComponent("CallableKitExports.ts"), options: .atomic)
+            .write(to: outDirectory.appendingPathComponent("\(moduleName)Exports.ts"), options: .atomic)
 
         if let resourceURL = Bundle.module.resourceURL.map({ $0.appendingPathComponent("templates") }) {
             do {

@@ -49,6 +49,7 @@ extension WasmExports {
 }
 """
 
+        try? FileManager.default.createDirectory(at: outDirectory, withIntermediateDirectories: true)
         try content.data(using: .utf8)!
             .write(to: outDirectory.appendingPathComponent("Generated.swift"), options: .atomic)
     }

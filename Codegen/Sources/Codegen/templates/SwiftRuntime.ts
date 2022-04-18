@@ -62,11 +62,6 @@ export class SwiftRuntime {
 
     const argJsonString = JSON.stringify(argument) + '\0';
     const argBytes = this.textEncoder.encode(argJsonString);
-    console.debug(`call swift function with`, {
-      functionID,
-      argJsonString,
-      argBytesLength: argBytes.length,
-    });
     this._nextArgument = argBytes;
     const out = exports.ck_send(functionID, argBytes.length);
     const returnValue = this._nextReturn!!;

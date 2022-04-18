@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "WasmCallableKit",
+    name: "WasmCallableKitCodegen",
     platforms: [.macOS(.v12)],
     products: [
     ],
