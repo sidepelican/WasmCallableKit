@@ -9,14 +9,14 @@ struct GenerateSwift {
         let content = """
 import Foundation
 
-\(exportsProtocol.functionRequirements.contains(where: { !$0.hasOutput }) ? "private let emptyReturnData = Data(\"{}\".utf8)" : "")
+\(exportsProtocol.decl.functions.contains(where: { !$0.hasOutput }) ? "private let emptyReturnData = Data(\"{}\".utf8)" : "")
 
-\(exportsProtocol.functionRequirements.compactMap({ f in
+\(exportsProtocol.decl.functions.compactMap({ f in
 if f.parameters.isEmpty { return nil }
 return """
 private struct \(f.name)Arguments: Decodable {
 \(f.parameters.enumerated().map({ """
-    var _\($0.offset): \($0.element.unresolvedType.name)
+    var _\($0.offset): \($0.element.interfaceType.description)
 """ }).joined(separator: "\n"))
 }
 """
@@ -26,13 +26,13 @@ private func makeFunctionList<T: WasmExports>(wasmExports: T.Type) -> [(Data) th
     let decoder = JSONDecoder()
     let encoder = JSONEncoder()
     var ret: [(Data) throws -> Data] = []
-\(exportsProtocol.functionRequirements.map({ f in
+\(exportsProtocol.decl.functions.map({ f in
 """
     ret.append { (arg: Data) in
         \(!f.parameters.isEmpty ? "let a = try decoder.decode(\(f.name)Arguments.self, from: arg)" : "")
         \(f.hasOutput ? "let b = " : "")\(f.isThrows ? "try ": "")T.\(f.name)(
 \(f.parameters.enumerated().map({ """
-            \($0.element.label ?? $0.element.name): a._\($0.offset)
+            \($0.element.argumentName!): a._\($0.offset)
 """ }).joined(separator: ",\n"))
         )
         return \(f.hasOutput ? "try encoder.encode(b)" : "emptyReturnData")
@@ -55,8 +55,12 @@ extension WasmExports {
     }
 }
 
-extension FunctionRequirement {
+extension FuncDecl {
     var hasOutput: Bool {
-        unresolvedOutputType != nil
+        resultTypeRepr != nil
+    }
+
+    var isThrows: Bool {
+        modifiers.contains(.throws)
     }
 }

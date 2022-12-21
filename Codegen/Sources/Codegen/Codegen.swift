@@ -39,24 +39,25 @@ struct ValidationError: Error, CustomStringConvertible {
             throw CodegenError.moduleNameNotFound
         }
 
-        let module = Reader()
-        let result = try module.read(file: wasmExportsFile)
+        let context = SwiftTypeReader.Context()
+        let module = SwiftTypeReader.Reader(
+            context: context,
+            module: context.getOrCreateModule(name: moduleName)
+        )
+        let source = try module.read(file: wasmExportsFile)[0]
 
         // validations
 
-        guard let exportsProtocol = result.module.types.first(where: { stype in
-            stype.protocol != nil
-            && stype.name == "WasmExports"
-        })?.protocol else {
+        guard let exportsProtocol = source.find(name: "WasmExports", options: .init(type: true))?.asProtocol else {
             throw ValidationError("'WasmExports' protocol not found")
         }
         guard exportsProtocol.associatedTypes.isEmpty else {
             throw ValidationError("'WasmExports' protocol cannot have associated types")
         }
-        guard exportsProtocol.unresolvedInheritedTypes.isEmpty else {
+        guard exportsProtocol.inheritedTypeReprs.isEmpty else {
             throw ValidationError("'WasmExports' protocol cannot have inherited types")
         }
-        guard exportsProtocol.functionRequirements.allSatisfy({ f in
+        guard exportsProtocol.functions.allSatisfy({ f in
             f.isStatic && !f.isAsync && !f.isReasync
         }) else {
             throw ValidationError("all requirements should be static and not be async")
@@ -66,13 +67,14 @@ struct ValidationError: Error, CustomStringConvertible {
 
         if let swift_out = swift_out {
             try GenerateSwift(
-                exportsProtocol: exportsProtocol,
+                exportsProtocol: exportsProtocol.typedDeclaredInterfaceType,
                 outDirectory: swift_out
             ).run()
         }
 
         if let ts_out = ts_out {
             try GenerateTS(
+                context: context,
                 moduleName: moduleName,
                 exportsProtocol: exportsProtocol,
                 outDirectory: ts_out
@@ -92,5 +94,19 @@ extension Sequence {
 extension URL: ExpressibleByArgument {
     public init?(argument: String) {
         self = URL(fileURLWithPath: argument)
+    }
+}
+
+extension FuncDecl {
+    var isStatic: Bool {
+        modifiers.contains(.static)
+    }
+
+    var isAsync: Bool {
+        modifiers.contains(.async)
+    }
+
+    var isReasync: Bool {
+        modifiers.contains(.reasync)
     }
 }

@@ -1,67 +1,110 @@
-@testable import CodableToTypeScript
+import CodableToTypeScript
 import Foundation
 import SwiftTypeReader
-import TSCodeModule
+import TypeScriptAST
 
 struct GenerateTS {
+    var context: SwiftTypeReader.Context
     var moduleName: String
-    var exportsProtocol: ProtocolType
+    var exportsProtocol: ProtocolDecl
     var outDirectory: URL
 
     private let typeMap: TypeMap = {
-        var typeMapTable: [String: String] = TypeMap.defaultTable
-        typeMapTable["URL"] = "string"
-        typeMapTable["Date"] = "number"
+        var typeMapTable: [String: TypeMap.Entry] = TypeMap.defaultTable
+        typeMapTable["URL"] = .identity(name: "string")
+        typeMapTable["Date"] = .coding(entityType: "Date", jsonType: "number", decode: "Date_decode", encode: "Date_encode")
         return TypeMap(table: typeMapTable)
     }()
 
-    func run() throws {
-        var content = """
-type PartialSwiftRuntime = {
-  callSwiftFunction(functionID: number, argument: any): any
-}
+    func generatePartialSwiftRuntime() -> some ASTNode {
+        TSTypeDecl(name: "PartialSwiftRuntime", type: TSObjectType([
+            .init(name: "callSwiftFunction", type: TSFunctionType(params: [
+                .init(name: "functionID", type: TSIdentType.number),
+                .init(name: "argument", type: TSIdentType.any),
+            ], result: TSIdentType.any)),
+        ]))
+    }
 
-export type \(moduleName)Exports = {
-\(try exportsProtocol.functionRequirements.map({ f in
-"""
-  \(f.name): (\(try f.parameters.map({ "\($0.name): \(try typeMap.tsName(stype: $0.type()))" }).joined(separator: ", "))) => \(try f.outputType().map(typeMap.tsName(stype:)) ?? "void"),
-""" }).joined(separator: "\n"))
-};
+    func generateExportsType(generator: CodeGenerator) throws -> some ASTNode {
+        TSTypeDecl(
+            modifiers: [.export],
+            name: "\(moduleName)Exports",
+            type: TSObjectType(try exportsProtocol.functions.map { funcDecl in
+                TSObjectType.Field(
+                    name: funcDecl.name,
+                    type: TSFunctionType(
+                        params: try funcDecl.parameters.toTSParams(generator: generator),
+                        result: try generator.converter(for: funcDecl.resultInterfaceType).type(for: .entity)
+                    )
+                )
+            })
+        )
+    }
 
-export const bind\(moduleName) = (swift: PartialSwiftRuntime): \(moduleName)Exports => {
-  return {
-\(try exportsProtocol.functionRequirements.enumerated().map({ (i, f) in
-"""
-    \(f.name): (\(try f.parameters.map({ "\($0.name): \(try typeMap.tsName(stype: $0.type()))" }).joined(separator: ", "))): \(try f.outputType().map(typeMap.tsName(stype:)) ?? "void") => swift.callSwiftFunction(\(i), {
-\(f.parameters.enumerated().map({ i, p in
-"""
-      _\(i): \(p.name),
-"""
-}).joined(separator: "\n"))
-    }),
-""" }).joined(separator: "\n"))
-  };
-};
-"""
+    func generateBindFunc(generator: CodeGenerator) throws -> some ASTNode {
+        TSVarDecl(
+            modifiers: [.export],
+            kind: .const,
+            name: "bind\(moduleName)",
+            initializer: TSClosureExpr(
+                params: [.init(name: "swift", type: TSIdentType("PartialSwiftRuntime"))],
+                result: TSIdentType("\(moduleName)Exports"),
+                body: TSBlockStmt([
+                    TSReturnStmt(TSObjectExpr(try exportsProtocol.functions.enumerated().map { i, funcDecl in
+                        TSObjectExpr.Field.named(
+                            name: funcDecl.name,
+                            value: TSClosureExpr(
+                                params: try funcDecl.parameters.toTSParams(generator: generator),
+                                body: TSCallExpr(
+                                    callee: TSMemberExpr(base: TSIdentExpr("swift"), name: "callSwiftFunction"),
+                                    args: [
+                                        TSNumberLiteralExpr(i),
+                                        TSObjectExpr(funcDecl.parameters.enumerated().map { i, paramDecl in
+                                            TSObjectExpr.Field.named(name: "_\(i)", value: TSIdentExpr(paramDecl.argumentName ?? "_\(i)"))
+                                        }),
+                                    ]
+                                )
+                            )
+                        )
+                    })),
+                ])
+            )
+        )
+    }
 
-        for stype in exportsProtocol.module!.types {
-            if stype.struct != nil || (stype.enum != nil && !stype.enum!.caseElements.isEmpty) {
-                let tsCode = try CodableToTypeScript.CodeGenerator(
-                    typeMap: typeMap,
-                    standardTypes: CodableToTypeScript.CodeGenerator.defaultStandardTypes
-                )(type: stype)
-
-                let tsDecls = tsCode.decls.filter {
-                    if case .importDecl = $0 { return false } else { return true }
-                }
-                    .map { $0.description.trimmingCharacters(in: .whitespacesAndNewlines) }
-                content.append("\n\n")
-                content.append(tsDecls.joined(separator: "\n\n"))
+    func generateEntityTypes(generator: CodeGenerator) throws -> [any TSDecl] {
+        var codes: [any TSDecl] = []
+        try exportsProtocol.moduleContext.walkTypeDecls { (stype) in
+            guard stype is StructDecl
+                    || stype is EnumDecl
+                    || stype is TypeAliasDecl
+            else {
+                return true
             }
+
+            let converter = try generator.converter(for: stype.declaredInterfaceType)
+            codes += try converter.ownDecls().decls
+            return true
         }
+        return codes
+    }
+
+    func run() throws {
+        let generator = CodeGenerator(
+            context: context,
+            typeConverterProvider: TypeConverterProvider(typeMap: typeMap)
+        )
+        let source = TSSourceFile([])
+        source.elements.append(generatePartialSwiftRuntime())
+        source.elements.append(try generateExportsType(generator: generator))
+        source.elements.append(try generateBindFunc(generator: generator))
+        source.elements.append(contentsOf: try generateEntityTypes(generator: generator))
+        source.elements.append(contentsOf: generator.generateHelperLibrary().elements)
+        source.elements.append(DateConvertDecls.encodeDecl())
+        source.elements.append(DateConvertDecls.decodeDecl())
 
         try? FileManager.default.createDirectory(at: outDirectory, withIntermediateDirectories: true)
-        try content.data(using: .utf8)!
+        try source.print().data(using: .utf8)!
             .write(to: outDirectory.appendingPathComponent("\(moduleName)Exports.ts"), options: .atomic)
 
         if let resourceURL = Bundle.module.resourceURL.map({ $0.appendingPathComponent("templates") }) {
@@ -81,33 +124,37 @@ export const bind\(moduleName) = (swift: PartialSwiftRuntime): \(moduleName)Expo
     }
 }
 
-extension TypeMap {
-    fileprivate func tsName(stype: SType) throws -> String {
-        let printer = PrettyPrinter()
-        try StructConverter.transpile(typeMap: self, type: stype).print(printer: printer)
-        return printer.output
+fileprivate enum DateConvertDecls {
+    static func decodeDecl() -> TSFunctionDecl {
+        TSFunctionDecl(
+            modifiers: [.export],
+            name: "Date_decode",
+            params: [ .init(name: "unixMilli", type: TSIdentType("number"))],
+            body: TSBlockStmt([
+                TSReturnStmt(TSNewExpr(callee: TSIdentType("Date"), args: [TSIdentExpr("unixMilli")]))
+            ])
+        )
+    }
+
+    static func encodeDecl() -> TSFunctionDecl {
+        TSFunctionDecl(
+            modifiers: [.export],
+            name: "Date_encode",
+            params: [.init(name: "d", type: TSIdentType("Date"))],
+            body: TSBlockStmt([
+                TSReturnStmt(TSCallExpr(callee: TSMemberExpr(base: TSIdentExpr("d"), name: "getTime"), args: []))
+            ])
+        )
     }
 }
 
-fileprivate func unwrapGenerics(typeName: String) -> [String] {
-    typeName
-        .components(separatedBy: .whitespaces.union(.init(charactersIn: "<>,")))
-        .filter { !$0.isEmpty }
-}
-
-fileprivate func findTypes(in tsType: TSType) -> [String] {
-    switch tsType {
-    case .array(let array):
-        return findTypes(in: array.element)
-    case .dictionary(let dictionary):
-        return findTypes(in: dictionary.element)
-    case .named(let named):
-        return [named.name]
-    case .record(let record):
-        return record.fields.flatMap { findTypes(in: $0.type) }
-    case .stringLiteral:
-        return []
-    case .union(let union):
-        return union.items.flatMap { findTypes(in: $0) }
+extension [ParamDecl] {
+    func toTSParams(generator: CodeGenerator) throws -> [TSFunctionType.Param] {
+        try enumerated().map { i, paramDecl in
+            TSFunctionType.Param(
+                name: paramDecl.argumentName ?? "_\(i)",
+                type: try generator.converter(for: paramDecl.interfaceType).type(for: .entity)
+            )
+        }
     }
 }

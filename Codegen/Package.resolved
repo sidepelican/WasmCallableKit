@@ -1,21 +1,12 @@
 {
   "pins" : [
     {
-      "identity" : "binaryswiftsyntax",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/omochi/BinarySwiftSyntax",
-      "state" : {
-        "branch" : "main",
-        "revision" : "4e5348faeda3aa711e1a5e002f40203fa5ba384f"
-      }
-    },
-    {
       "identity" : "codabletotypescript",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/omochi/CodableToTypeScript",
       "state" : {
-        "branch" : "main",
-        "revision" : "5438280e4190782591027138abe2237d9e472fc0"
+        "revision" : "d77e58c5750daff29f3302854edcece462578892",
+        "version" : "2.5.0"
       }
     },
     {
@@ -28,12 +19,39 @@
       }
     },
     {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections",
+      "state" : {
+        "revision" : "937e904258d22af6e447a0b72c0bc67583ef64a2",
+        "version" : "1.0.4"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax",
+      "state" : {
+        "revision" : "72d3da66b085c2299dd287c2be3b92b5ebd226de",
+        "version" : "0.50700.1"
+      }
+    },
+    {
       "identity" : "swifttypereader",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/omochi/SwiftTypeReader",
       "state" : {
-        "branch" : "main",
-        "revision" : "3df91b15c2c7fa187a2659b45150c62f98ef2f25"
+        "revision" : "f31096036ec85e1087d957dd881c187a1628c3f7",
+        "version" : "2.3.1"
+      }
+    },
+    {
+      "identity" : "typescriptast",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omochi/TypeScriptAST",
+      "state" : {
+        "revision" : "1549aa2d5cf62024c0d7bb165ae14e7e6ca5a232",
+        "version" : "1.5.2"
       }
     }
   ],
