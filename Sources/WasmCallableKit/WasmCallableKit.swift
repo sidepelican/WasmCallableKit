@@ -27,6 +27,6 @@ func ck_send_impl(_ functionID: CInt, _ argumentBufferLength: CInt) -> CInt {
         message.withUTF8 { (p: UnsafeBufferPointer<UInt8>) in
             write_ret(p.baseAddress!, numericCast(p.count))
         }
-        return 1;
+        return -1;
     }
 }

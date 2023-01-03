@@ -1,7 +1,7 @@
 class Memory {
   readonly rawMemory: WebAssembly.Memory;
   constructor(exports: WebAssembly.Exports) {
-      this.rawMemory = exports.memory as WebAssembly.Memory;
+    this.rawMemory = exports.memory as WebAssembly.Memory;
   }
   bytes(): Uint8Array {
     return new Uint8Array(this.rawMemory.buffer);
@@ -12,65 +12,106 @@ class Memory {
 }
 
 type WasmCallableKitExported = {
-  ck_send: (functionID: number, argumentBufferLength: number) => number,
-}
+  ck_send: (functionID: number, argumentBufferLength: number) => number;
+  ck_class_init: (classID: number, initilizerID: number, argumentBufferLength: number) => number;
+  ck_class_send: (instanceID: number, functionID: number, argumentBufferLength: number) => number;
+};
+
+export var globalRuntime: SwiftRuntime;
 
 export class SwiftRuntime {
-  private _instance: WebAssembly.Instance | null = null;
-  private _memory: Memory | null = null;
+  #_instance: WebAssembly.Instance | null = null;
+  #_memory: Memory | null = null;
 
-  private _nextArgument: Uint8Array | null = null;
-  private _nextReturn: string | null = null;
+  #nextArgument: Uint8Array | null = null;
+  #nextReturn: string | null = null;
 
-  private textDecoder = new TextDecoder("utf-8");
-  private textEncoder = new TextEncoder();
+  #textDecoder = new TextDecoder("utf-8");
+  #textEncoder = new TextEncoder();
+
+  constructor() {
+    globalRuntime = this;
+  }
 
   setInstance(instance: WebAssembly.Instance) {
-    this._instance = instance;
+    this.#_instance = instance;
   }
 
-  private get instance() {
-    if (!this._instance)
-        throw new Error("WebAssembly instance is not set yet");
-    return this._instance;
+  get #instance(): WebAssembly.Instance {
+    if (!this.#_instance)
+      throw new Error("WebAssembly instance is not set yet");
+    return this.#_instance;
   }
 
-  private get memory() {
-    if (!this._memory) {
-        this._memory = new Memory(this.instance.exports);
+  get #memory(): Memory {
+    if (!this.#_memory) {
+      this.#_memory = new Memory(this.#instance.exports);
     }
-    return this._memory;
+    return this.#_memory;
+  }
+
+  get #callableKitExports(): WasmCallableKitExported {
+    return this.#instance.exports as WasmCallableKitExported;
   }
 
   get callableKitImports(): WebAssembly.Imports {
-    return {
-      callable_kit: {
-        receive_arg: (buffer: number) => {
-          this.memory.writeBytes(buffer, this._nextArgument!!);
-          this._nextArgument = null;
-        },
-        write_ret: (buffer: number, length: number) => {
-          const bytes = this.memory.bytes().subarray(buffer, buffer + length);
-          this._nextReturn = this.textDecoder.decode(bytes);
-        },
-      }
+    const callable_kit = {
+      receive_arg: (buffer: number) => {
+        this.#memory.writeBytes(buffer, this.#nextArgument!!);
+        this.#nextArgument = null;
+      },
+      write_ret: (buffer: number, length: number) => {
+        const bytes = this.#memory.bytes().subarray(buffer, buffer + length);
+        this.#nextReturn = this.#textDecoder.decode(bytes);
+      },
     };
+    return { callable_kit };
   }
 
-  callSwiftFunction(functionID: number, argument: any): any {
-    const exports = this.instance.exports as WasmCallableKitExported;
-
+  #pushArg(argument: unknown): number {
     const argJsonString = JSON.stringify(argument) + '\0';
-    const argBytes = this.textEncoder.encode(argJsonString);
-    this._nextArgument = argBytes;
-    const out = exports.ck_send(functionID, argBytes.length);
-    const returnValue = this._nextReturn!!;
-    this._nextReturn = null;
+    const argBytes = this.#textEncoder.encode(argJsonString);
+    this.#nextArgument = argBytes;
+    return argBytes.length;
+  }
 
+  #popReturn(): any {
+    const returnValue = this.#nextReturn!!;
+    this.#nextReturn = null;
+    return returnValue;
+  }
+
+  callSwiftFunction(functionID: number, argument: unknown): any {
+    const argLen = this.#pushArg(argument);
+    const out = this.#callableKitExports.ck_send(functionID, argLen);
+    const returnValue = this.#popReturn();
     switch (out) {
       case 0:
         return JSON.parse(returnValue);
-      case 1:
+      case -1:
+        throw new Error(returnValue);
+    }
+  }
+
+  classInit(classID: number, initializerID: number, argument: unknown): number {
+    const argLen = this.#pushArg(argument);
+    const out = this.#callableKitExports.ck_class_init(classID, initializerID, argLen);
+    switch (out) {
+      case -1:
+        throw new Error(this.#popReturn());
+      default:
+        return out;
+    }
+  }
+
+  classSend(instanceID: number, functionID: number, argument: unknown): unknown {
+    const argLen = this.#pushArg(argument);
+    const out = this.#callableKitExports.ck_class_init(instanceID, functionID, argLen);
+    const returnValue = this.#popReturn();
+    switch (out) {
+      case 0:
+        return JSON.parse(returnValue);
+      case -1:
         throw new Error(returnValue);
     }
   }

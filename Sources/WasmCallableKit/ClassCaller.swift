@@ -48,12 +48,16 @@ private struct Binding<C: AnyObject>: ClassBindingProtocol {
 
 private var bindings: [InstanceID: any ClassBindingProtocol] = [:]
 private var classMetadata: [any ClassMetadataProtocol] = []
+private var lastInstanceID: InstanceID.RawValue = 0
 private func takeInstanceID() -> InstanceID {
-    .init(.random(in: .min..<(.max))) // TODO:
+    defer { lastInstanceID += 1 }
+    return .init(lastInstanceID)
 }
 
-func registerClassMetadata(meta: [any ClassMetadataProtocol]) {
-    classMetadata = meta
+extension WasmCallableKit {
+    public static func registerClassMetadata(meta: [any ClassMetadataProtocol]) {
+        classMetadata = meta
+    }
 }
 
 @_cdecl("ck_class_init_impl")
