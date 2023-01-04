@@ -1,7 +1,7 @@
 import CWasmCallableKit
 import Foundation
 
-public struct InstanceID: RawRepresentable, Hashable {
+public struct InstanceID: RawRepresentable, Hashable, CustomStringConvertible {
     public init(_ value: CInt) {
         self.rawValue = value
     }
@@ -9,6 +9,7 @@ public struct InstanceID: RawRepresentable, Hashable {
         self.rawValue = rawValue
     }
     public var rawValue: CInt
+    public var description: String { rawValue.description }
 }
 
 public protocol ClassMetadataProtocol<C> {
@@ -46,7 +47,7 @@ private struct Binding<C: AnyObject>: ClassBindingProtocol {
     }
 }
 
-private var bindings: [InstanceID: any ClassBindingProtocol] = [:]
+private var bindings: [(InstanceID, any ClassBindingProtocol)] = []
 private var classMetadata: [any ClassMetadataProtocol] = []
 private var lastInstanceID: InstanceID.RawValue = 0
 private func takeInstanceID() -> InstanceID {
@@ -72,7 +73,7 @@ func ck_class_init_impl(_ classID: CInt, _ initilizerID: CInt, _ argumentBufferL
     do {
         let binding = try metadata.initAndBind(initializerID: Int(initilizerID), argData: arg)
         let instanceID = takeInstanceID()
-        bindings[instanceID] = binding
+        bindings.append((instanceID, binding))
         return instanceID.rawValue
     } catch {
         var message = "\(error)"
@@ -85,13 +86,18 @@ func ck_class_init_impl(_ classID: CInt, _ initilizerID: CInt, _ argumentBufferL
 
 @_cdecl("ck_class_send_impl")
 func ck_class_send_impl(_ instanceID: CInt, _ functionID: CInt, _ argumentBufferLength: CInt) -> CInt {
-    guard let binding = bindings[InstanceID(instanceID)] else {
-        fatalError("TODO:")
-    }
-
     let memory = malloc(Int(argumentBufferLength)).assumingMemoryBound(to: UInt8.self)
     defer { memory.deallocate() }
     receive_arg(memory)
+
+    let instanceID = InstanceID(instanceID)
+    guard let binding = bindings.first(where: { $0.0 == instanceID })?.1 else {
+        var message = "instanceID=\(instanceID) is not found. all=\(bindings.map(\.0))"
+        message.withUTF8 { (p: UnsafeBufferPointer<UInt8>) in
+            write_ret(p.baseAddress!, numericCast(p.count))
+        }
+        return -1;
+    }
 
     let arg = Data(String(decodingCString: memory, as: UTF8.self).utf8)
     do {
