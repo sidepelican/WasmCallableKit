@@ -76,14 +76,14 @@ struct ValidationError: Error, CustomStringConvertible {
             ).run()
         }
 
-//        if let ts_out = ts_out {
-//            try GenerateTS(
-//                context: context,
-//                moduleName: moduleName,
-//                scanResult: scanResult,
-//                outDirectory: ts_out
-//            ).run()
-//        }
+        if let ts_out = ts_out {
+            try GenerateTS(
+                context: context,
+                moduleName: moduleName,
+                scanResult: scanResult,
+                outDirectory: ts_out
+            ).run()
+        }
 
         withExtendedLifetime(context) {}
     }

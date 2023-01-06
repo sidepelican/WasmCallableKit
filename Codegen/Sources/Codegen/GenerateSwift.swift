@@ -61,10 +61,10 @@ meta.methods.append { `self`, _ in
                 } else {
                     return """
 meta.methods.append { `self`, argData in
-\(buildParamsEntity(params: decl.parameters).withIndent(4))
+\(buildParamsEntity(params: decl.parameters).withIndent(1))
     let args = try decoder.decode(Params.self, from: argData)
     let \(returnReceiver) = \(tryToken)self.\(decl.name)(
-\(buildCallArguments(params: decl.parameters).withIndent(8))
+\(buildCallArguments(params: decl.parameters).withIndent(2))
     )
     \(returnStmt)
 }
@@ -75,7 +75,9 @@ meta.methods.append { `self`, argData in
             return """
 func build\(className)Metadata() -> ClassMetadata<\(className)> {
     let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .millisecondsSince1970
     let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .millisecondsSince1970
     let empty = Data("{}".utf8)
     var meta = ClassMetadata<\(className)>()
 \(inits.joined(separator: "\n").withIndent(1))
@@ -85,7 +87,8 @@ func build\(className)Metadata() -> ClassMetadata<\(className)> {
 """
         }
 
-        let imports = Set(["Foudation", "WasmCallableKit"]) + file.imports.map(\.moduleName)
+        let imports = Set(["Foundation", "WasmCallableKit"])
+            .union(file.imports.map(\.moduleName))
 
         return """
 \(imports.sorted().map { "import \($0)" }.joined(separator: "\n"))
@@ -120,18 +123,42 @@ ret.append { argData in
             }
         }
 
-        let imports = Set(["Foudation"]) + allImports.map(\.moduleName)
+        let imports = Set(["Foundation"])
+            .union(allImports.map(\.moduleName))
 
         return """
 \(imports.sorted().map { "import \($0)" }.joined(separator: "\n"))
 
 func buildGlobals() -> [(Data) throws -> Data] {
     let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .millisecondsSince1970
     let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .millisecondsSince1970
     let empty = Data("{}".utf8)
     var ret: [(Data) throws -> Data] = []
 \(methods.joined(separator: "\n").withIndent(1))
     return ret
+}
+"""
+    }
+
+    private func process(classes: [ScanResult.ClassInfo], hasGlobal: Bool) throws -> String {
+        let installGlobal = hasGlobal ? "setFunctionList(buildGlobals())" : ""
+        let installClass = classes
+            .sorted(using: KeyPathComparator(\.classID))
+            .map { "build\($0)Medadata()," }
+            .joined(separator: "\n")
+
+return """
+import WasmCallableKit
+
+extension WasmCallableKit {
+    static func install() {
+        \(installGlobal)
+        registerClassMetadata(meta: [
+\(installClass.withIndent(3))
+        ])
+    }
 }
 """
     }
@@ -153,6 +180,14 @@ func buildGlobals() -> [(Data) throws -> Data] {
                 )
                 try sink(file: .init(relativeURL: URL(fileURLWithPath: "\(moduleName)Globals.swift"), content: global))
             }
+
+            try sink(file: .init(
+                relativeURL: URL(fileURLWithPath: "Install.swift"),
+                content: try process(
+                    classes: scanResult.files.flatMap { $0.classes },
+                    hasGlobal: !scanResult.globalFuncs.isEmpty
+                )
+            ))
         }
     }
 }

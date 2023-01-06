@@ -3,6 +3,7 @@ import SwiftTypeReader
 
 struct ScanResult {
     struct ClassInfo {
+        var classID: Int
         var decl: ClassDecl
         var inits: [InitDecl]
         var methods: [FuncDecl]
@@ -28,18 +29,25 @@ enum SwiftScanner {
         var globalFuncs: [FuncDecl] = []
         var files: [ScanResult.File] = []
 
+        var classIDs = (0...).makeIterator()
+
         for source in sources {
             let classInfo = source.types
                 .compactMap { $0 as? ClassDecl }
                 .filter(\.isPublic)
-                .map { classDecl -> ScanResult.ClassInfo in
+                .compactMap { classDecl -> ScanResult.ClassInfo? in
+                    let inits = classDecl.initializers.filter(\.isPublic)
+                    let methods = classDecl.functions.filter(\.isPublic)
+                    guard !inits.isEmpty, !methods.isEmpty else {
+                        return nil
+                    }
                     return .init(
+                        classID: classIDs.next()!,
                         decl: classDecl,
-                        inits: classDecl.initializers.filter(\.isPublic),
-                        methods: classDecl.functions.filter(\.isPublic)
+                        inits: inits,
+                        methods: methods
                     )
                 }
-                .filter(\.methods.isEmpty.not)
             if !classInfo.isEmpty {
                 files.append(.init(source: source, classes: classInfo))
             }

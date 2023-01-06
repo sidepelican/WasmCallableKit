@@ -1,9 +1,10 @@
-import Fo
-import Foudation
+import Foundation
 
 func buildGlobals() -> [(Data) throws -> Data] {
     let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .millisecondsSince1970
     let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .millisecondsSince1970
     let empty = Data("{}".utf8)
     var ret: [(Data) throws -> Data] = []
     ret.append { argData in
