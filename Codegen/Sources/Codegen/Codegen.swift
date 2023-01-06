@@ -14,8 +14,8 @@ struct ValidationError: Error, CustomStringConvertible {
 }
 
 @main struct Codegen: ParsableCommand {
-    @Argument
-    var wasmExportsFile: URL
+    @Argument(help: "target module directory", completion: .directory)
+    var module_dir: URL
 
     @Option(help: "generate typescript runtime", completion: .directory)
     var ts_out: URL?
@@ -27,7 +27,7 @@ struct ValidationError: Error, CustomStringConvertible {
     var module: String?
 
     mutating func run() throws {
-        let moduleName = wasmExportsFile
+        let moduleName = module_dir
             .resolvingSymlinksInPath()
             .pathComponents
             .eachPairs()
@@ -39,47 +39,53 @@ struct ValidationError: Error, CustomStringConvertible {
             throw CodegenError.moduleNameNotFound
         }
 
+        // scan
+
         let context = SwiftTypeReader.Context()
         let module = SwiftTypeReader.Reader(
             context: context,
             module: context.getOrCreateModule(name: moduleName)
         )
-        let source = try module.read(file: wasmExportsFile)[0]
+        let sources = try module.read(directory: module_dir)
+        let scanResult = try SwiftScanner.scan(sources: sources)
 
         // validations
 
-        guard let exportsProtocol = source.find(name: "WasmExports", options: .init(type: true))?.asProtocol else {
-            throw ValidationError("'WasmExports' protocol not found")
-        }
-        guard exportsProtocol.associatedTypes.isEmpty else {
-            throw ValidationError("'WasmExports' protocol cannot have associated types")
-        }
-        guard exportsProtocol.inheritedTypeReprs.isEmpty else {
-            throw ValidationError("'WasmExports' protocol cannot have inherited types")
-        }
-        guard exportsProtocol.functions.allSatisfy({ f in
-            f.isStatic && !f.isAsync && !f.isReasync
-        }) else {
-            throw ValidationError("all requirements should be static and not be async")
-        }
+//        guard let exportsProtocol = source.find(name: "WasmExports", options: .init(type: true))?.asProtocol else {
+//            throw ValidationError("'WasmExports' protocol not found")
+//        }
+//        guard exportsProtocol.associatedTypes.isEmpty else {
+//            throw ValidationError("'WasmExports' protocol cannot have associated types")
+//        }
+//        guard exportsProtocol.inheritedTypeReprs.isEmpty else {
+//            throw ValidationError("'WasmExports' protocol cannot have inherited types")
+//        }
+//        guard exportsProtocol.functions.allSatisfy({ f in
+//            f.isStatic && !f.isAsync && !f.isReasync
+//        }) else {
+//            throw ValidationError("all requirements should be static and not be async")
+//        }
 
         // generate
 
         if let swift_out = swift_out {
             try GenerateSwift(
-                exportsProtocol: exportsProtocol.typedDeclaredInterfaceType,
+                moduleName: moduleName,
+                scanResult: scanResult,
                 outDirectory: swift_out
             ).run()
         }
 
-        if let ts_out = ts_out {
-            try GenerateTS(
-                context: context,
-                moduleName: moduleName,
-                exportsProtocol: exportsProtocol,
-                outDirectory: ts_out
-            ).run()
-        }
+//        if let ts_out = ts_out {
+//            try GenerateTS(
+//                context: context,
+//                moduleName: moduleName,
+//                scanResult: scanResult,
+//                outDirectory: ts_out
+//            ).run()
+//        }
+
+        withExtendedLifetime(context) {}
     }
 }
 
@@ -103,10 +109,6 @@ extension FuncDecl {
     }
 
     var isAsync: Bool {
-        modifiers.contains(.async)
-    }
-
-    var isReasync: Bool {
-        modifiers.contains(.reasync)
+        modifiers.contains(.async) || modifiers.contains(.reasync)
     }
 }
