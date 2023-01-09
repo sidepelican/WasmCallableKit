@@ -146,7 +146,7 @@ func buildGlobals() -> [(Data) throws -> Data] {
         let installGlobal = hasGlobal ? "setFunctionList(buildGlobals())" : ""
         let installClass = classes
             .sorted(using: KeyPathComparator(\.classID))
-            .map { "build\($0)Medadata()," }
+            .map { "build\($0.decl.name)Metadata()," }
             .joined(separator: "\n")
 
 return """
@@ -170,7 +170,7 @@ extension WasmCallableKit {
         ).run { sink in
             for file in scanResult.files {
                 let source = try process(file: file)
-                try sink(file: .init(relativeURL: file.url, content: source))
+                try sink(file: .init(relativeURL: file.url.rewritingExtension("gen.swift"), content: source))
             }
 
             if !scanResult.globalFuncs.isEmpty {
