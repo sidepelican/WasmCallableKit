@@ -53,7 +53,7 @@ struct GenerateTS {
     private func process(file: ScanResult.File) throws -> [any ASTNode] {
         let runtime = TSIdentType("SwiftRuntime")
         let this = TSIdentExpr.this
-        return try file.classes.map { classInfo -> any ASTNode in
+        let classDecls = try file.classes.map { classInfo -> any ASTNode in
             let className = classInfo.decl.name
 
             let constructors = try classInfo.inits.enumerated().map { (initializerID: Int, decl: InitDecl) -> any ASTNode in
@@ -106,81 +106,61 @@ struct GenerateTS {
                 ] + constructors + methods)
             )
         }
+
+        let entityDecls = try file.entities.flatMap { stype in
+            let converter = try generator.converter(for: stype.declaredInterfaceType)
+            return try converter.ownDecls().decls
+        }
+
+        return classDecls + entityDecls
     }
 
-//    func generatePartialSwiftRuntime() -> some ASTNode {
-//        TSTypeDecl(name: "PartialSwiftRuntime", type: TSObjectType([
-//            .field(name: "callSwiftFunction", type: TSFunctionType(params: [
-//                .init(name: "functionID", type: TSIdentType.number),
-//                .init(name: "argument", type: TSIdentType.any),
-//            ], result: TSIdentType.any)),
-//        ]))
-//    }
+    private func process(globalFuncs: [FuncDecl]) throws -> [any ASTNode] {
+        let exportTypeDecl = TSTypeDecl(
+            modifiers: [.export],
+            name: "\(moduleName)Exports",
+            type: TSObjectType(try globalFuncs.map { funcDecl in
+                TSObjectType.Field.field(
+                    name: funcDecl.name,
+                    type: TSFunctionType(
+                        params: try funcDecl.parameters.toTSParams(generator: generator),
+                        result: try generator.converter(for: funcDecl.resultInterfaceType).type(for: .entity)
+                    )
+                )
+            })
+        )
 
-//    func generateExportsType(generator: CodeGenerator) throws -> some ASTNode {
-//        TSTypeDecl(
-//            modifiers: [.export],
-//            name: "\(moduleName)Exports",
-//            type: TSObjectType(try exportsProtocol.functions.map { funcDecl in
-//                TSObjectType.Field(
-//                    name: funcDecl.name,
-//                    type: TSFunctionType(
-//                        params: try funcDecl.parameters.toTSParams(generator: generator),
-//                        result: try generator.converter(for: funcDecl.resultInterfaceType).type(for: .entity)
-//                    )
-//                )
-//            })
-//        )
-//    }
 
-//    func generateBindFunc(generator: CodeGenerator) throws -> some ASTNode {
-//        TSVarDecl(
-//            modifiers: [.export],
-//            kind: .const,
-//            name: "bind\(moduleName)",
-//            initializer: TSClosureExpr(
-//                params: [.init(name: "swift", type: TSIdentType("PartialSwiftRuntime"))],
-//                result: TSIdentType("\(moduleName)Exports"),
-//                body: TSBlockStmt([
-//                    TSReturnStmt(TSObjectExpr(try exportsProtocol.functions.enumerated().map { i, funcDecl in
-//                        TSObjectExpr.Field.named(
-//                            name: funcDecl.name,
-//                            value: TSClosureExpr(
-//                                params: try funcDecl.parameters.toTSParams(generator: generator),
-//                                body: TSCallExpr(
-//                                    callee: TSMemberExpr(base: TSIdentExpr("swift"), name: "callSwiftFunction"),
-//                                    args: [
-//                                        TSNumberLiteralExpr(i),
-//                                        TSObjectExpr(funcDecl.parameters.enumerated().map { i, paramDecl in
-//                                            TSObjectExpr.Field.named(name: "_\(i)", value: TSIdentExpr(paramDecl.argumentName ?? "_\(i)"))
-//                                        }),
-//                                    ]
-//                                )
-//                            )
-//                        )
-//                    })),
-//                ])
-//            )
-//        )
-//    }
+        let bindDecl = TSVarDecl(
+            modifiers: [.export],
+            kind: .const,
+            name: "bind\(moduleName)",
+            initializer: TSClosureExpr(
+                params: [.init(name: "swift", type: TSIdentType("SwiftRuntime"))],
+                result: TSIdentType("\(moduleName)Exports"),
+                body: TSBlockStmt([
+                    TSReturnStmt(TSObjectExpr(try globalFuncs.enumerated().map { i, funcDecl in
+                        TSObjectExpr.Field.named(
+                            name: funcDecl.name,
+                            value: TSClosureExpr(
+                                params: try funcDecl.parameters.toTSParams(generator: generator),
+                                body: TSCallExpr(
+                                    callee: TSMemberExpr(base: TSIdentExpr("swift"), name: "callSwiftFunction"),
+                                    args: [
+                                        TSNumberLiteralExpr(i),
+                                        TSObjectExpr(funcDecl.parameters.enumerated().map { i, paramDecl in
+                                            TSObjectExpr.Field.named(name: "_\(i)", value: TSIdentExpr(paramDecl.argumentName ?? "_\(i)"))
+                                        }),
+                                    ]
+                                )
+                            )
+                        )
+                    })),
+                ])
+            )
+        )
 
-    private func generateEntityTypes(source: SourceFile) throws -> [any TSDecl] {
-        var codes: [any TSDecl] = []
-        for type in source.types {
-            try type.walkTypeDecls { (stype) in
-                guard stype is StructDecl
-                        || stype is EnumDecl
-                        || stype is TypeAliasDecl
-                else {
-                    return true
-                }
-
-                let converter = try generator.converter(for: stype.declaredInterfaceType)
-                codes += try converter.ownDecls().decls
-                return true
-            }
-        }
-        return codes
+        return [exportTypeDecl, bindDecl]
     }
 
     func run() throws {
@@ -206,9 +186,11 @@ struct GenerateTS {
 
             for file in scanResult.files {
                 let source = TSSourceFile(try process(file: file))
-                source.elements += try generateEntityTypes(source: file.source)
                 sources.append(.init(file: file.url.rewritingExtension("ts"), source: source))
             }
+
+            let global = TSSourceFile(try process(globalFuncs: scanResult.globalFuncs))
+            sources.append(.init(file: URL(fileURLWithPath: "global.ts"), source: global))
 
             let common = TSSourceFile([])
             common.elements.append(contentsOf: generator.generateHelperLibrary().elements)
@@ -250,20 +232,6 @@ struct GenerateTS {
                 ))
             }
         }
-
-//        let source = TSSourceFile([])
-//        source.elements.append(generatePartialSwiftRuntime())
-//        source.elements.append(try generateExportsType(generator: generator))
-//        source.elements.append(try generateBindFunc(generator: generator))
-//        source.elements.append(contentsOf: try generateEntityTypes(generator: generator))
-//        source.elements.append(contentsOf: generator.generateHelperLibrary().elements)
-//        source.elements.append(DateConvertDecls.encodeDecl())
-//        source.elements.append(DateConvertDecls.decodeDecl())
-//
-//        try? FileManager.default.createDirectory(at: outDirectory, withIntermediateDirectories: true)
-//        try source.print().data(using: .utf8)!
-//            .write(to: outDirectory.appendingPathComponent("\(moduleName)Exports.ts"), options: .atomic)
-
     }
 }
 

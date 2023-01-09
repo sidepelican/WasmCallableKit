@@ -12,6 +12,7 @@ struct ScanResult {
     struct File {
         var source: SourceFile
         var classes: [ClassInfo]
+        var entities: [any TypeDecl]
         var url: URL {
             source.file
         }
@@ -48,17 +49,46 @@ enum SwiftScanner {
                         methods: methods
                     )
                 }
-            if !classInfo.isEmpty {
-                files.append(.init(source: source, classes: classInfo))
-            }
+
+            files.append(.init(
+                source: source,
+                classes: classInfo,
+                entities: findEntityTypes(source: source)
+            ))
 
             globalFuncs.append(contentsOf: source.funcs.filter(\.isPublic))
+        }
+
+        files.removeAll { f in
+            f.classes.isEmpty && f.entities.isEmpty
         }
 
         return .init(
             files: files.sorted(using: KeyPathComparator(\.url.absoluteString)),
             globalFuncs: globalFuncs
         )
+    }
+
+    private static func findEntityTypes(source: SourceFile) -> [any TypeDecl] {
+        var stypes: [any TypeDecl] = []
+        for type in source.types {
+            type.walkTypeDecls { (stype) in
+                switch stype {
+                case let stype as StructDecl where stype.isPublic:
+                    break
+                case let stype as EnumDecl where stype.isPublic:
+                    break
+                case let stype as TypeAliasDecl where stype.isPublic:
+                    break
+                default:
+                    return true
+                }
+
+                stypes.append(stype)
+                return true
+            }
+        }
+        return stypes
     }
 }
 
@@ -77,6 +107,25 @@ extension FuncDecl {
 extension ClassDecl {
     var isPublic: Bool {
         modifiers.contains(.public) || modifiers.contains(.open)
+    }
+}
+
+extension StructDecl {
+    var isPublic: Bool {
+        modifiers.contains(.public) || modifiers.contains(.open)
+    }
+}
+
+extension EnumDecl {
+    var isPublic: Bool {
+        modifiers.contains(.public) || modifiers.contains(.open)
+    }
+}
+
+extension TypeAliasDecl {
+    var isPublic: Bool {
+        false // FIXME: unimplemented
+//        modifiers.contains(.public) || modifiers.contains(.open)
     }
 }
 
