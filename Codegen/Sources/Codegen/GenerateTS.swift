@@ -37,7 +37,7 @@ struct GenerateTS {
         let fields = try params.enumerated().map { (i, decl: ParamDecl) -> TSObjectExpr.Field in
             let converter = try generator.converter(for: decl.interfaceType)
             let hasEncoder = try converter.hasEncode()
-            let argName = decl.argumentName!
+            let argName = decl.syntaxName!
 
             return .named(
                 name: "_\(i)",
@@ -149,7 +149,7 @@ struct GenerateTS {
                                     args: [
                                         TSNumberLiteralExpr(i),
                                         TSObjectExpr(funcDecl.parameters.enumerated().map { i, paramDecl in
-                                            TSObjectExpr.Field.named(name: "_\(i)", value: TSIdentExpr(paramDecl.argumentName ?? "_\(i)"))
+                                            TSObjectExpr.Field.named(name: "_\(i)", value: TSIdentExpr(paramDecl.syntaxName ?? "_\(i)"))
                                         }),
                                     ]
                                 )
@@ -186,31 +186,36 @@ struct GenerateTS {
 
             for file in scanResult.files {
                 let source = TSSourceFile(try process(file: file))
-                sources.append(.init(file: file.url.rewritingExtension("ts"), source: source))
+                sources.append(.init(
+                    file: file.url
+                        .rewritingExtension("gen.ts")
+                        .rewritingBase(outDirectory),
+                    source: source
+                ))
             }
 
             let global = TSSourceFile(try process(globalFuncs: scanResult.globalFuncs))
-            sources.append(.init(file: URL(fileURLWithPath: "global.ts"), source: global))
+            sources.append(.init(file: URL(fileURLWithPath: "global.gen.ts"), source: global))
 
             let common = TSSourceFile([])
             common.elements.append(contentsOf: generator.generateHelperLibrary().elements)
             common.elements.append(DateConvertDecls.encodeDecl())
             common.elements.append(DateConvertDecls.decodeDecl())
-            sources.append(.init(file: URL(fileURLWithPath: "common.ts"), source: common))
+            sources.append(.init(file: URL(fileURLWithPath: "common.gen.ts"), source: common))
 
             // collect all symbols
             var symbolTable = SymbolTable(
                 standardLibrarySymbols: SymbolTable.standardLibrarySymbols.union([
                 ])
             )
-            symbolTable.add(symbol: "globalRuntime", file: .file(URL(fileURLWithPath: "SwiftRuntime.ts")))
-            symbolTable.add(symbol: "SwiftRuntime", file: .file(URL(fileURLWithPath: "SwiftRuntime.ts")))
+            symbolTable.add(symbol: "globalRuntime", file: .file(URL(fileURLWithPath: "SwiftRuntime.gen.ts")))
+            symbolTable.add(symbol: "SwiftRuntime", file: .file(URL(fileURLWithPath: "SwiftRuntime.gen.ts")))
             for source in sources {
                 for symbol in source.source.memberDeclaredNames {
                     if let _ = symbolTable.find(symbol){
                         throw MessageError("Duplicated symbol: \(symbol). Using the same name in multiple modules is not supported.")
                     }
-                    symbolTable.add(symbol: symbol, file: .file(source.file))
+                    symbolTable.add(symbol: symbol, file: .file(URL(fileURLWithPath: source.file.relativePath)))
                 }
             }
 
@@ -263,7 +268,7 @@ extension [ParamDecl] {
     func toTSParams(generator: CodeGenerator) throws -> [TSFunctionType.Param] {
         try enumerated().map { i, paramDecl in
             TSFunctionType.Param(
-                name: paramDecl.argumentName ?? "_\(i)",
+                name: paramDecl.syntaxName ?? "_\(i)",
                 type: try generator.converter(for: paramDecl.interfaceType).type(for: .entity)
             )
         }
@@ -306,5 +311,12 @@ extension URL {
     func rewritingExtension(_ ext: String) -> URL {
         self.deletingPathExtension()
             .appendingPathExtension(ext)
+    }
+
+    func rewritingBase(_ base: URL) -> URL {
+        return URL(
+            fileURLWithPath: relativePath,
+            relativeTo: base
+        )
     }
 }

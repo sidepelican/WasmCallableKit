@@ -18,7 +18,7 @@ struct Params: Decodable {
 
     private func buildCallArguments(params: [ParamDecl]) -> String {
         return params.enumerated().map({ """
-\($0.element.argumentName!): args._\($0.offset)
+\($0.element.syntaxName!): args._\($0.offset)
 """ }).joined(separator: ",\n")
     }
 
@@ -166,7 +166,7 @@ extension WasmCallableKit {
     func run() throws {
         try DirectoryWriter(
             dstDirectory: outDirectory,
-            isOutputFileName: { $0.hasSuffix(".swift") }
+            isOutputFileName: { $0.hasSuffix(".gen.swift") }
         ).run { sink in
             for file in scanResult.files {
                 let source = try process(file: file)
@@ -178,11 +178,11 @@ extension WasmCallableKit {
                     globalFuncs: scanResult.globalFuncs,
                     allImports: scanResult.files.flatMap(\.imports)
                 )
-                try sink(file: .init(relativeURL: URL(fileURLWithPath: "\(moduleName)Globals.swift"), content: global))
+                try sink(file: .init(relativeURL: URL(fileURLWithPath: "\(moduleName)Globals.gen.swift"), content: global))
             }
 
             try sink(file: .init(
-                relativeURL: URL(fileURLWithPath: "Install.swift"),
+                relativeURL: URL(fileURLWithPath: "Install.gen.swift"),
                 content: try process(
                     classes: scanResult.files.flatMap { $0.classes },
                     hasGlobal: !scanResult.globalFuncs.isEmpty

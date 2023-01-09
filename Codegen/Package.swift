@@ -11,7 +11,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.1.0"),
         .package(url: "https://github.com/omochi/CodableToTypeScript", from: "2.6.2"),
-        .package(url: "https://github.com/omochi/SwiftTypeReader", from: "2.4.2"),
+        .package(url: "https://github.com/omochi/SwiftTypeReader", from: "2.4.3"),
     ],
     targets: [
         .executableTarget(

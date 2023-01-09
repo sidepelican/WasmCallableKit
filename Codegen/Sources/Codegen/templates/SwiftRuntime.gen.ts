@@ -106,7 +106,7 @@ export class SwiftRuntime {
 
   classSend(instanceID: number, functionID: number, argument: unknown): unknown {
     const argLen = this.#pushArg(argument);
-    const out = this.#callableKitExports.ck_class_init(instanceID, functionID, argLen);
+    const out = this.#callableKitExports.ck_class_send(instanceID, functionID, argLen);
     const returnValue = this.#popReturn();
     switch (out) {
       case 0:

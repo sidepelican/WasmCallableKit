@@ -49,23 +49,6 @@ struct ValidationError: Error, CustomStringConvertible {
         let sources = try module.read(directory: module_dir)
         let scanResult = try SwiftScanner.scan(sources: sources)
 
-        // validations
-
-//        guard let exportsProtocol = source.find(name: "WasmExports", options: .init(type: true))?.asProtocol else {
-//            throw ValidationError("'WasmExports' protocol not found")
-//        }
-//        guard exportsProtocol.associatedTypes.isEmpty else {
-//            throw ValidationError("'WasmExports' protocol cannot have associated types")
-//        }
-//        guard exportsProtocol.inheritedTypeReprs.isEmpty else {
-//            throw ValidationError("'WasmExports' protocol cannot have inherited types")
-//        }
-//        guard exportsProtocol.functions.allSatisfy({ f in
-//            f.isStatic && !f.isAsync && !f.isReasync
-//        }) else {
-//            throw ValidationError("all requirements should be static and not be async")
-//        }
-
         // generate
 
         if let swift_out = swift_out {
