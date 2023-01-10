@@ -57,7 +57,6 @@ struct GenerateTS {
             let className = classInfo.decl.name
 
             let constructors = try classInfo.inits.enumerated().map { (initializerID: Int, decl: InitDecl) -> any ASTNode in
-
                 return TSMethodDecl(
                     name: "constructor",
                     params: try decl.parameters.toTSParams(generator: generator)
@@ -134,7 +133,6 @@ struct GenerateTS {
             })
         )
 
-
         let bindDecl = TSVarDecl(
             modifiers: [.export],
             kind: .const,
@@ -143,19 +141,20 @@ struct GenerateTS {
                 params: [.init(name: "swift", type: TSIdentType("SwiftRuntime"))],
                 result: TSIdentType("\(moduleName)Exports"),
                 body: TSBlockStmt([
-                    TSReturnStmt(TSObjectExpr(try globalFuncs.enumerated().map { i, funcDecl in
-                        TSObjectExpr.Field.named(
-                            name: funcDecl.name,
+                    TSReturnStmt(TSObjectExpr(try globalFuncs.enumerated().map { (i, decl: FuncDecl) in
+                        let runtimeCall = TSCallExpr(callee: TSMemberExpr(base: TSIdentExpr("swift"), name: "send"), args: [
+                            TSNumberLiteralExpr(i),
+                            try buildEncodingParam(params: decl.parameters),
+                        ])
+
+                        let resultConverter = try generator.converter(for: decl.resultInterfaceType)
+
+                        return TSObjectExpr.Field.named(
+                            name: decl.name,
                             value: TSClosureExpr(
-                                params: try funcDecl.parameters.toTSParams(generator: generator),
-                                body: TSCallExpr(
-                                    callee: TSMemberExpr(base: TSIdentExpr("swift"), name: "callSwiftFunction"),
-                                    args: [
-                                        TSNumberLiteralExpr(i),
-                                        TSObjectExpr(funcDecl.parameters.enumerated().map { i, paramDecl in
-                                            TSObjectExpr.Field.named(name: "_\(i)", value: TSIdentExpr(paramDecl.syntaxName ?? "_\(i)"))
-                                        }),
-                                    ]
+                                params: try decl.parameters.toTSParams(generator: generator),
+                                body: try resultConverter.callDecode(
+                                    json: TSAsExpr(runtimeCall, resultConverter.type(for: .json))
                                 )
                             )
                         )

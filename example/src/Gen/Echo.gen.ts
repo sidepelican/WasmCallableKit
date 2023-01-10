@@ -17,14 +17,18 @@ export class Echo {
         return this.#runtime.classSend(this.#id, 0, {}) as string;
     }
 
+    sayHello(): void {
+        return this.#runtime.classSend(this.#id, 1, {}) as void;
+    }
+
     update(update: Echo_UpdateKind): void {
-        return this.#runtime.classSend(this.#id, 1, {
+        return this.#runtime.classSend(this.#id, 2, {
             _0: update
         }) as void;
     }
 
     tommorow(now: Date): Date {
-        return Date_decode(this.#runtime.classSend(this.#id, 2, {
+        return Date_decode(this.#runtime.classSend(this.#id, 3, {
             _0: Date_encode(now)
         }) as number);
     }

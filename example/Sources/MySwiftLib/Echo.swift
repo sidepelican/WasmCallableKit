@@ -6,11 +6,19 @@ public class Echo {
         self.name = name
     }
 
-    public func hello() -> String {
+    private var helloMessage: String {
         "Hello, \(name)!"
     }
 
-    public enum UpdateKind {
+    public func hello() -> String {
+        helloMessage
+    }
+
+    public func sayHello() {
+        print(helloMessage)
+    }
+
+    public enum UpdateKind: Decodable {
         case name(String)
     }
 
@@ -23,5 +31,9 @@ public class Echo {
 
     public func tommorow(now: Date) -> Date {
         now.addingTimeInterval(60 * 60 * 24 * 1)
+    }
+
+    deinit {
+        print("Echo deinit")
     }
 }

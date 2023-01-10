@@ -21,6 +21,10 @@ func buildEchoMetadata() -> ClassMetadata<Echo> {
         let ret = self.hello()
         return try encoder.encode(ret)
     }
+    meta.methods.append { `self`, _ in
+        let _ = self.sayHello()
+        return empty
+    }
     meta.methods.append { `self`, argData in
         struct Params: Decodable {
             var _0: Echo.UpdateKind

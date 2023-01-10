@@ -86,7 +86,7 @@ export class SwiftRuntime {
     return returnValue;
   }
 
-  callSwiftFunction(functionID: number, argument: unknown): unknown {
+  send(functionID: number, argument: unknown): unknown {
     const argLen = this.#pushArg(argument);
     const out = this.#callableKitExports.ck_send(functionID, argLen);
     const returnValue = this.#popReturn();

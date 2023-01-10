@@ -6,17 +6,23 @@ let package = Package(
     name: "MySwiftLib",
     platforms: [.macOS(.v12)],
     products: [
-        .library(name: "MySwiftLib", targets: ["MySwiftLib"]),
+        .executable(name: "MySwiftLib", targets: ["MySwiftLib"]),
     ],
     dependencies: [
         .package(path: "../"),
         .package(path: "../Codegen"),
     ],
     targets: [
-        .target(
+        .executableTarget(
             name: "MySwiftLib",
             dependencies: [
                 .product(name: "WasmCallableKit", package: "WasmCallableKit"),
+            ],
+            linkerSettings: [
+                .unsafeFlags([
+                    "-Xclang-linker", "-mexec-model=reactor",
+                    "-Xlinker", "--export=main",
+                ])
             ]
         ),
         .plugin(

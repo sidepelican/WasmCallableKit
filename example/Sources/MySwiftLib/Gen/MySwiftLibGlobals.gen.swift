@@ -19,5 +19,25 @@ func buildGlobals() -> [(Data) throws -> Data] {
         )
         return try encoder.encode(ret)
     }
+    ret.append { argData in
+        struct Params: Decodable {
+            var _0: Date
+        }
+        let args = try decoder.decode(Params.self, from: argData)
+        let ret = yesterday(
+            now: args._0
+        )
+        return try encoder.encode(ret)
+    }
+    ret.append { argData in
+        struct Params: Decodable {
+            var _0: Vec2
+        }
+        let args = try decoder.decode(Params.self, from: argData)
+        let ret = normalize(
+            args._0
+        )
+        return try encoder.encode(ret)
+    }
     return ret
 }
