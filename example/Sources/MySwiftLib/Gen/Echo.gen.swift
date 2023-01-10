@@ -6,7 +6,6 @@ func buildEchoMetadata() -> ClassMetadata<Echo> {
     decoder.dateDecodingStrategy = .millisecondsSince1970
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .millisecondsSince1970
-    let empty = Data("{}".utf8)
     var meta = ClassMetadata<Echo>()
     meta.inits.append { argData in
         struct Params: Decodable {
@@ -23,7 +22,7 @@ func buildEchoMetadata() -> ClassMetadata<Echo> {
     }
     meta.methods.append { `self`, _ in
         let _ = self.sayHello()
-        return empty
+        return Data()
     }
     meta.methods.append { `self`, argData in
         struct Params: Decodable {
@@ -33,7 +32,7 @@ func buildEchoMetadata() -> ClassMetadata<Echo> {
         let _ = self.update(
             args._0
         )
-        return empty
+        return Data()
     }
     meta.methods.append { `self`, argData in
         struct Params: Decodable {

@@ -80,7 +80,7 @@ export class SwiftRuntime {
     return argBytes.length;
   }
 
-  #popReturn(): any {
+  #popReturn(): string | null {
     const returnValue = this.#nextReturn!!;
     this.#nextReturn = null;
     return returnValue;
@@ -89,9 +89,10 @@ export class SwiftRuntime {
   send(functionID: number, argument: unknown): unknown {
     const argLen = this.#pushArg(argument);
     const out = this.#callableKitExports.ck_send(functionID, argLen);
-    const returnValue = this.#popReturn();
+    const returnValue = this.#popReturn()!!;
     switch (out) {
       case 0:
+        if (returnValue === "") return;
         return JSON.parse(returnValue);
       case -1:
         throw new Error(returnValue);
@@ -105,7 +106,7 @@ export class SwiftRuntime {
     const out = this.#callableKitExports.ck_class_init(classID, initializerID, argLen);
     switch (out) {
       case -1:
-        throw new Error(this.#popReturn());
+        throw new Error(this.#popReturn()!!);
       default:
         return out;
     }
@@ -114,9 +115,10 @@ export class SwiftRuntime {
   classSend(instanceID: number, functionID: number, argument: unknown): unknown {
     const argLen = this.#pushArg(argument);
     const out = this.#callableKitExports.ck_class_send(instanceID, functionID, argLen);
-    const returnValue = this.#popReturn();
+    const returnValue = this.#popReturn()!!;
     switch (out) {
       case 0:
+        if (returnValue === "") return;
         return JSON.parse(returnValue);
       case -1:
         throw new Error(returnValue);

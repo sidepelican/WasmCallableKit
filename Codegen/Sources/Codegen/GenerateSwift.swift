@@ -54,7 +54,7 @@ meta.inits.append { argData in
             let methods = classInfo.methods.map { (decl: FuncDecl) in
                 let tryToken = decl.isThrows ? "try " : ""
                 let returnReceiver = decl.hasOutput ? "ret" : "_"
-                let returnStmt = "return \(decl.hasOutput ? "try encoder.encode(ret)" : "empty")"
+                let returnStmt = "return \(decl.hasOutput ? "try encoder.encode(ret)" : "Data()")"
                 if decl.parameters.isEmpty {
                     return """
 meta.methods.append { `self`, _ in
@@ -82,7 +82,6 @@ func build\(className)Metadata() -> ClassMetadata<\(className)> {
     decoder.dateDecodingStrategy = .millisecondsSince1970
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .millisecondsSince1970
-    let empty = Data("{}".utf8)
     var meta = ClassMetadata<\(className)>()
 \(inits.joined(separator: "\n").withIndent(1))
 \(methods.joined(separator: "\n").withIndent(1))
@@ -105,7 +104,7 @@ func build\(className)Metadata() -> ClassMetadata<\(className)> {
         let methods = globalFuncs.map { (decl: FuncDecl) in
             let tryToken = decl.isThrows ? "try " : ""
             let returnReceiver = decl.hasOutput ? "ret" : "_"
-            let returnStmt = "return \(decl.hasOutput ? "try encoder.encode(ret)" : "empty")"
+            let returnStmt = "return \(decl.hasOutput ? "try encoder.encode(ret)" : "Data()")"
             if decl.parameters.isEmpty {
                 return """
 ret.append { _ in
@@ -138,7 +137,6 @@ func buildGlobals() -> [(Data) throws -> Data] {
     decoder.dateDecodingStrategy = .millisecondsSince1970
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .millisecondsSince1970
-    let empty = Data("{}".utf8)
     var ret: [(Data) throws -> Data] = []
 \(methods.joined(separator: "\n").withIndent(1))
     return ret
