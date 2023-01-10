@@ -1,0 +1,59 @@
+{
+  "pins" : [
+    {
+      "identity" : "codabletotypescript",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omochi/CodableToTypeScript",
+      "state" : {
+        "revision" : "643a22c9d836e8c33accc13fedea39f7337a72a6",
+        "version" : "2.6.9"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "fddd1c00396eed152c45a46bea9f47b98e59301d",
+        "version" : "1.2.0"
+      }
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections",
+      "state" : {
+        "revision" : "937e904258d22af6e447a0b72c0bc67583ef64a2",
+        "version" : "1.0.4"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax",
+      "state" : {
+        "revision" : "72d3da66b085c2299dd287c2be3b92b5ebd226de",
+        "version" : "0.50700.1"
+      }
+    },
+    {
+      "identity" : "swifttypereader",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omochi/SwiftTypeReader",
+      "state" : {
+        "revision" : "4474b5eede5ddc5d322b51acf74db39c95116e09",
+        "version" : "2.4.5"
+      }
+    },
+    {
+      "identity" : "typescriptast",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/omochi/TypeScriptAST",
+      "state" : {
+        "revision" : "fd7961c8cb06954f1934852756f59541742672e9",
+        "version" : "1.8.5"
+      }
+    }
+  ],
+  "version" : 2
+}
