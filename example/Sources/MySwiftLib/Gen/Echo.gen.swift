@@ -27,7 +27,7 @@ func buildEchoMetadata() -> ClassMetadata<Echo> {
         }
         let args = try decoder.decode(Params.self, from: argData)
         let _ = self.update(
-            _: args._0
+            args._0
         )
         return empty
     }

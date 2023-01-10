@@ -72,6 +72,10 @@ struct GenerateTS {
                                 try buildEncodingParam(params: decl.parameters),
                             ])
                         ),
+                        TSCallExpr(callee: TSMemberExpr(base: this, names: "#runtime", "autorelease"), args: [
+                            this,
+                            TSMemberExpr(base: this, name: "#id"),
+                        ]),
                     ])
                 )
             }

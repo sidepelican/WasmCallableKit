@@ -1,5 +1,5 @@
-import { SwiftRuntime, globalRuntime } from "./SwiftRuntime.js";
-import { Date_decode, Date_encode, TagRecord } from "./common.js";
+import { SwiftRuntime, globalRuntime } from "./SwiftRuntime.gen.js";
+import { Date_decode, Date_encode, TagRecord } from "./common.gen.js";
 
 export class Echo {
     #runtime: SwiftRuntime;
@@ -10,15 +10,16 @@ export class Echo {
         this.#id = this.#runtime.classInit(0, 0, {
             _0: name
         });
+        this.#runtime.autorelease(this, this.#id);
     }
 
     hello(): string {
         return this.#runtime.classSend(this.#id, 0, {}) as string;
     }
 
-    update(_: Echo_UpdateKind): void {
+    update(update: Echo_UpdateKind): void {
         return this.#runtime.classSend(this.#id, 1, {
-            _0: _
+            _0: update
         }) as void;
     }
 

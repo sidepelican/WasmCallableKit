@@ -1,4 +1,4 @@
-import { SwiftRuntime } from "./SwiftRuntime.js";
+import { SwiftRuntime } from "./SwiftRuntime.gen.js";
 
 export type MySwiftLibExports = {
     add: (a: number, b: number) => number;

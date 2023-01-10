@@ -114,3 +114,11 @@ func ck_class_send_impl(_ instanceID: CInt, _ functionID: CInt, _ argumentBuffer
         return -1;
     }
 }
+
+@_cdecl("ck_class_free_impl")
+func ck_class_free_impl(_ instanceID: CInt) {
+    let instanceID = InstanceID(instanceID)
+    if let i = bindings.lastIndex(where: { $0.0 == instanceID }) {
+        bindings.remove(at: i)
+    }
+}

@@ -17,9 +17,13 @@ struct Params: Decodable {
     }
 
     private func buildCallArguments(params: [ParamDecl]) -> String {
-        return params.enumerated().map({ """
-\($0.element.syntaxName!): args._\($0.offset)
-""" }).joined(separator: ",\n")
+        return params.enumerated().map { (i, decl: ParamDecl) in
+            if let interfaceName = decl.interfaceName {
+                return "\(interfaceName): args._\(i)"
+            } else {
+                return "args._\(i)"
+            }
+        }.joined(separator: ",\n")
     }
 
     private func process(file: ScanResult.File) throws -> String {
@@ -210,8 +214,8 @@ extension FuncDecl {
 
 extension String {
     fileprivate func withIndent(_ indent: Int) -> String {
-        self.splitLines()
+        self.split(separator: "\n")
             .map { String(repeating: "    ", count: indent) + $0 }
-            .joined()
+            .joined(separator: "\n")
     }
 }

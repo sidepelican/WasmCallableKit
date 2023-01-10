@@ -3,6 +3,7 @@
 int ck_send_impl(int functionID, int argumentBufferLength);
 int ck_class_init_impl(int classID, int initilizerID, int argumentBufferLength);
 int ck_class_send_impl(int instanceID, int functionID, int argumentBufferLength);
+void ck_class_free_impl(int instanceID);
 
 ck_wasm_export("ck_send")
 int ck_send(int functionID, int argumentBufferLength) {
@@ -17,4 +18,9 @@ int ck_class_init(int classID, int initilizerID, int argumentBufferLength) {
 ck_wasm_export("ck_class_send")
 int ck_class_send(int instanceID, int functionID, int argumentBufferLength) {
     return ck_class_send_impl(instanceID, functionID, argumentBufferLength);
+}
+
+ck_wasm_export("ck_class_free")
+void ck_class_free(int instanceID) {
+    ck_class_free_impl(instanceID);
 }
