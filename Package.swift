@@ -7,6 +7,9 @@ let package = Package(
     products: [
         .library(name: "WasmCallableKit", targets: ["WasmCallableKit"]),
     ],
+    dependencies: [
+        .package(path: "./Codegen"),
+    ],
     targets: [
         .target(name: "WasmCallableKit", dependencies: ["CWasmCallableKit"]),
         .target(name: "CWasmCallableKit"),
