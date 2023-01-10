@@ -10,7 +10,7 @@
 #define ck_wasm_import(MODULE, NAME)
 #define ck_wasm_export(NAME)
 #endif
-  
+
 ck_wasm_import("callable_kit", "receive_arg")
 extern void receive_arg(unsigned char* buf);
 

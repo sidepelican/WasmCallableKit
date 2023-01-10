@@ -1,0 +1,17 @@
+{
+  "name": "ts_app",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "run": "npm run build && node --expose_gc --experimental-wasi-unstable-preview1 lib/index.js",
+    "swiftbuild": "swift build -c release --triple wasm32-unknown-wasi"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^18.11.18",
+    "typescript": "^4.9.4"
+  }
+}
