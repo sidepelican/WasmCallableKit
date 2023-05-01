@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "run": "npm run build && node --expose_gc --experimental-wasi-unstable-preview1 lib/index.js",
-    "swiftbuild": "swift build -c release --triple wasm32-unknown-wasi"
+    "codegen": "swift package codegen --allow-writing-to-package-directory",
+    "swiftbuild": "swift build --product MySwiftLib -c release --triple wasm32-unknown-wasi"
   },
   "author": "",
   "license": "MIT",

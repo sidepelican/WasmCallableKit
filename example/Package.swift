@@ -10,7 +10,6 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../"),
-        .package(path: "../Codegen"),
     ],
     targets: [
         .executableTarget(
@@ -32,7 +31,7 @@ let package = Package(
                 permissions: [.writeToPackageDirectory(reason: "Place generated code")]
             ),
             dependencies: [
-                .product(name: "codegen", package: "Codegen"),
+                .product(name: "codegen", package: "WasmCallableKit"),
             ]
         )
     ]
