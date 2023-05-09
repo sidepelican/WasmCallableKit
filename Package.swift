@@ -11,8 +11,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.2"),
-        .package(url: "https://github.com/omochi/CodableToTypeScript", from: "2.8.0"),
-        .package(url: "https://github.com/omochi/SwiftTypeReader", from: "2.5.0"),
+        .package(url: "https://github.com/omochi/CodableToTypeScript", from: "2.8.1"),
+        .package(url: "https://github.com/omochi/SwiftTypeReader", from: "2.5.1"),
     ],
     targets: [
         .target(name: "WasmCallableKit", dependencies: ["CWasmCallableKit"]),
