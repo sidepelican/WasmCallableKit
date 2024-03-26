@@ -33,11 +33,11 @@ struct GenerateTS {
         )
     }
 
-    private func buildEncodingParam(params: [ParamDecl]) throws -> any TSExpr {
-        let fields = try params.enumerated().map { (i, decl: ParamDecl) -> TSObjectExpr.Field in
+    private func buildEncodingParam(params: [FuncParamDecl]) throws -> any TSExpr {
+        let fields = try params.enumerated().map { (i, decl: FuncParamDecl) -> TSObjectExpr.Field in
             let converter = try generator.converter(for: decl.interfaceType)
             let hasEncoder = try converter.hasEncode()
-            let argName = decl.syntaxName!
+            let argName = decl.syntaxName
 
             return .named(
                 name: "_\(i)",
@@ -267,11 +267,11 @@ fileprivate enum DateConvertDecls {
     }
 }
 
-extension [ParamDecl] {
+extension [FuncParamDecl] {
     func toTSParams(generator: CodeGenerator) throws -> [TSFunctionType.Param] {
-        try enumerated().map { i, paramDecl in
+        try self.map { paramDecl in
             TSFunctionType.Param(
-                name: paramDecl.syntaxName ?? "_\(i)",
+                name: paramDecl.syntaxName,
                 type: try generator.converter(for: paramDecl.interfaceType).type(for: .entity)
             )
         }

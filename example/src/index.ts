@@ -6,7 +6,11 @@ import { bindMySwiftLib } from './Gen/global.gen.js';
 import { Echo } from './Gen/Echo.gen.js';
 
 // setup wasm instance
-const wasi = new WASI({ args: argv, env });
+const wasi = new WASI({
+  args: argv,
+  env,
+  version: "preview1",
+});
 const wasm = await WebAssembly.compile(
   await readFile(new URL('../.build/release/MySwiftLib.wasm', import.meta.url)),
 );
@@ -31,9 +35,7 @@ console.log(globals.add(40, 2));
   foo.update({ kind: "name", name: { _0: "Swift" }});
   foo.sayHello();
   
-  console.log(foo.tommorow(new Date()).toDateString());
 })();
 (global as any).gc();
 
-console.log(globals.yesterday(new Date()).toDateString());
 console.log(globals.normalize({ x: 2, y: 1 }));

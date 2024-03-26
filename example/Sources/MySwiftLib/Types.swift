@@ -1,4 +1,10 @@
-import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(WASILibc)
+import WASILibc
+#endif
 
 public struct Vec2: Codable {
     public var x: Float

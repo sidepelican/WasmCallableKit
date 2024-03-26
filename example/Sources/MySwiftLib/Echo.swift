@@ -1,5 +1,3 @@
-import Foundation
-
 public class Echo {
     private var name: String
     public init(name: String) {
@@ -27,10 +25,6 @@ public class Echo {
         case .name(let name):
             self.name = name
         }
-    }
-
-    public func tommorow(now: Date) -> Date {
-        now.addingTimeInterval(60 * 60 * 24 * 1)
     }
 
     deinit {

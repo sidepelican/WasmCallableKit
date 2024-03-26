@@ -6,7 +6,7 @@ struct GenerateSwift {
     var scanResult: ScanResult
     var outDirectory: URL
 
-    private func buildParamsEntity(params: [ParamDecl]) -> String {
+    private func buildParamsEntity(params: [FuncParamDecl]) -> String {
         return """
 struct Params: Decodable {
 \(params.enumerated().map({ """
@@ -16,8 +16,8 @@ struct Params: Decodable {
 """
     }
 
-    private func buildCallArguments(params: [ParamDecl]) -> String {
-        return params.enumerated().map { (i, decl: ParamDecl) in
+    private func buildCallArguments(params: [FuncParamDecl]) -> String {
+        return params.enumerated().map { (i, decl: FuncParamDecl) in
             if let interfaceName = decl.interfaceName {
                 return "\(interfaceName): args._\(i)"
             } else {
@@ -42,7 +42,7 @@ meta.inits.append { _ in
                     return """
 meta.inits.append { argData in
 \(buildParamsEntity(params: decl.parameters).withIndent(1))
-    let args = try decoder.decode(Params.self, from: argData)
+    let args = try WasmCallableKit.decodeJSON(Params.self, from: argData)
     return \(tryToken)\(className)(
 \(buildCallArguments(params: decl.parameters).withIndent(2))
     )
@@ -54,7 +54,7 @@ meta.inits.append { argData in
             let methods = classInfo.methods.map { (decl: FuncDecl) in
                 let tryToken = decl.isThrows ? "try " : ""
                 let returnReceiver = decl.hasOutput ? "ret" : "_"
-                let returnStmt = "return \(decl.hasOutput ? "try encoder.encode(ret)" : "Data()")"
+                let returnStmt = "return \(decl.hasOutput ? "try WasmCallableKit.encodeJSON(ret)" : "[]")"
                 if decl.parameters.isEmpty {
                     return """
 meta.methods.append { `self`, _ in
@@ -66,7 +66,7 @@ meta.methods.append { `self`, _ in
                     return """
 meta.methods.append { `self`, argData in
 \(buildParamsEntity(params: decl.parameters).withIndent(1))
-    let args = try decoder.decode(Params.self, from: argData)
+    let args = try WasmCallableKit.decodeJSON(Params.self, from: argData)
     let \(returnReceiver) = \(tryToken)self.\(decl.name)(
 \(buildCallArguments(params: decl.parameters).withIndent(2))
     )
@@ -78,10 +78,6 @@ meta.methods.append { `self`, argData in
 
             return """
 func build\(className)Metadata() -> ClassMetadata<\(className)> {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .millisecondsSince1970
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .millisecondsSince1970
     var meta = ClassMetadata<\(className)>()
 \(inits.joined(separator: "\n").withIndent(1))
 \(methods.joined(separator: "\n").withIndent(1))
@@ -90,7 +86,7 @@ func build\(className)Metadata() -> ClassMetadata<\(className)> {
 """
         }
 
-        let imports = Set(["Foundation", "WasmCallableKit"])
+        let imports = Set(["WasmCallableKit"])
             .union(file.imports.map(\.moduleName))
 
         return """
@@ -104,7 +100,7 @@ func build\(className)Metadata() -> ClassMetadata<\(className)> {
         let methods = globalFuncs.map { (decl: FuncDecl) in
             let tryToken = decl.isThrows ? "try " : ""
             let returnReceiver = decl.hasOutput ? "ret" : "_"
-            let returnStmt = "return \(decl.hasOutput ? "try encoder.encode(ret)" : "Data()")"
+            let returnStmt = "return \(decl.hasOutput ? "try WasmCallableKit.encodeJSON(ret)" : "[]")"
             if decl.parameters.isEmpty {
                 return """
 ret.append { _ in
@@ -116,7 +112,7 @@ ret.append { _ in
                 return """
 ret.append { argData in
 \(buildParamsEntity(params: decl.parameters).withIndent(1))
-    let args = try decoder.decode(Params.self, from: argData)
+    let args = try WasmCallableKit.decodeJSON(Params.self, from: argData)
     let \(returnReceiver) = \(tryToken)\(decl.name)(
 \(buildCallArguments(params: decl.parameters).withIndent(2))
     )
@@ -126,18 +122,14 @@ ret.append { argData in
             }
         }
 
-        let imports = Set(["Foundation"])
+        let imports = Set(["WasmCallableKit"])
             .union(allImports.map(\.moduleName))
 
         return """
 \(imports.sorted().map { "import \($0)" }.joined(separator: "\n"))
 
-func buildGlobals() -> [(Data) throws -> Data] {
-    let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .millisecondsSince1970
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .millisecondsSince1970
-    var ret: [(Data) throws -> Data] = []
+func buildGlobals() -> [([UInt8]) throws -> [UInt8]] {
+    var ret: [([UInt8]) throws -> [UInt8]] = []
 \(methods.joined(separator: "\n").withIndent(1))
     return ret
 }

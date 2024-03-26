@@ -1,5 +1,4 @@
 import CWasmCallableKit
-import Foundation
 
 public struct InstanceID: RawRepresentable, Hashable, CustomStringConvertible {
     public init(_ value: CInt) {
@@ -14,17 +13,17 @@ public struct InstanceID: RawRepresentable, Hashable, CustomStringConvertible {
 
 public protocol ClassMetadataProtocol<C> {
     associatedtype C: AnyObject
-    var inits: [(Data) throws -> C] { get }
-    var methods: [(C, Data) throws -> Data] { get }
-    func initAndBind(initializerID: Int, argData: Data) throws -> any ClassBindingProtocol
+    var inits: [([UInt8]) throws -> C] { get }
+    var methods: [(C, [UInt8]) throws -> [UInt8]] { get }
+    func initAndBind(initializerID: Int, argData: [UInt8]) throws -> any ClassBindingProtocol
 }
 
 public struct ClassMetadata<C: AnyObject>: ClassMetadataProtocol {
     public init() {}
-    public var inits: [(Data) throws -> C] = []
-    public var methods: [(C, Data) throws -> Data] = []
+    public var inits: [([UInt8]) throws -> C] = []
+    public var methods: [(C, [UInt8]) throws -> [UInt8]] = []
 
-    public func initAndBind(initializerID: Int, argData: Data) throws -> any ClassBindingProtocol {
+    public func initAndBind(initializerID: Int, argData: [UInt8]) throws -> any ClassBindingProtocol {
         let `init` = inits[initializerID]
         return Binding(
             instance: try `init`(argData),
@@ -35,14 +34,14 @@ public struct ClassMetadata<C: AnyObject>: ClassMetadataProtocol {
 
 public protocol ClassBindingProtocol<C> {
     associatedtype C: AnyObject
-    func send(functionID: Int, argData: Data) throws -> Data
+    func send(functionID: Int, argData: [UInt8]) throws -> [UInt8]
 }
 
 private struct Binding<C: AnyObject>: ClassBindingProtocol {
     var instance: C
     var metadata: ClassMetadata<C>
 
-    func send(functionID: Int, argData: Data) throws -> Data {
+    func send(functionID: Int, argData: [UInt8]) throws -> [UInt8] {
         try metadata.methods[functionID](instance, argData)
     }
 }
@@ -63,13 +62,9 @@ extension WasmCallableKit {
 
 @_cdecl("ck_class_init_impl")
 func ck_class_init_impl(_ classID: CInt, _ initilizerID: CInt, _ argumentBufferLength: CInt) -> CInt {
+    let arg = consumeArgumentBuffer(argumentBufferLength)
+
     let metadata = classMetadata[Int(classID)]
-
-    let memory = malloc(Int(argumentBufferLength)).assumingMemoryBound(to: UInt8.self)
-    defer { memory.deallocate() }
-    receive_arg(memory)
-
-    let arg = Data(String(decodingCString: memory, as: UTF8.self).utf8)
     do {
         let binding = try metadata.initAndBind(initializerID: Int(initilizerID), argData: arg)
         let instanceID = takeInstanceID()
@@ -86,9 +81,7 @@ func ck_class_init_impl(_ classID: CInt, _ initilizerID: CInt, _ argumentBufferL
 
 @_cdecl("ck_class_send_impl")
 func ck_class_send_impl(_ instanceID: CInt, _ functionID: CInt, _ argumentBufferLength: CInt) -> CInt {
-    let memory = malloc(Int(argumentBufferLength)).assumingMemoryBound(to: UInt8.self)
-    defer { memory.deallocate() }
-    receive_arg(memory)
+    let arg = consumeArgumentBuffer(argumentBufferLength)
 
     let instanceID = InstanceID(instanceID)
     guard let binding = bindings.first(where: { $0.0 == instanceID })?.1 else {
@@ -99,7 +92,6 @@ func ck_class_send_impl(_ instanceID: CInt, _ functionID: CInt, _ argumentBuffer
         return -1;
     }
 
-    let arg = Data(String(decodingCString: memory, as: UTF8.self).utf8)
     do {
         let ret = try binding.send(functionID: Int(functionID), argData: arg)
         ret.withUnsafeBytes { (p: UnsafeRawBufferPointer) in

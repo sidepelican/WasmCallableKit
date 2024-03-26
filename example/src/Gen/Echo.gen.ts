@@ -1,5 +1,5 @@
 import { SwiftRuntime, globalRuntime } from "./SwiftRuntime.gen.js";
-import { Date_decode, Date_encode, TagRecord } from "./common.gen.js";
+import { TagRecord } from "./common.gen.js";
 
 export class Echo {
     #runtime: SwiftRuntime;
@@ -25,12 +25,6 @@ export class Echo {
         return this.#runtime.classSend(this.#id, 2, {
             _0: update
         }) as void;
-    }
-
-    tommorow(now: Date): Date {
-        return Date_decode(this.#runtime.classSend(this.#id, 3, {
-            _0: Date_encode(now)
-        }) as number);
     }
 }
 

@@ -1,21 +1,17 @@
 import CWasmCallableKit
-import Foundation
 
-private var functionList: [(Data) throws -> Data]!
+private var functionList: [([UInt8]) throws -> [UInt8]]!
 
 public enum WasmCallableKit {
-    public static func setFunctionList(_ functions: [(Data) throws -> Data]) {
+    public static func setFunctionList(_ functions: [([UInt8]) throws -> [UInt8]]) {
         functionList = functions
     }
 }
 
 @_cdecl("ck_send_impl")
 func ck_send_impl(_ functionID: CInt, _ argumentBufferLength: CInt) -> CInt {
-    let memory = malloc(Int(argumentBufferLength)).assumingMemoryBound(to: UInt8.self)
-    defer { memory.deallocate() }
-    receive_arg(memory)
+    let arg = consumeArgumentBuffer(argumentBufferLength)
 
-    let arg = Data(String(decodingCString: memory, as: UTF8.self).utf8)
     do {
         let ret = try functionList[Int(functionID)](arg)
         ret.withUnsafeBytes { (p: UnsafeRawBufferPointer) in
@@ -29,4 +25,13 @@ func ck_send_impl(_ functionID: CInt, _ argumentBufferLength: CInt) -> CInt {
         }
         return -1;
     }
+}
+
+func consumeArgumentBuffer(_ argumentBufferLength: CInt) -> [UInt8] {
+    var arg = Array<UInt8>(repeating: 0, count: Int(argumentBufferLength))
+    arg.withUnsafeMutableBufferPointer { p in
+        receive_arg(p.baseAddress!)
+    }
+    arg.removeLast() // remove null terminator
+    return arg
 }
